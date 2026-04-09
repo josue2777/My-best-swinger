@@ -9,6 +9,9 @@ CTrade trade;
 CPositionInfo pos;
 COrderInfo ord;
 
+// Dashboard object name prefix
+const string  DASH_PFX = "CDMB_DASH_";
+
 input group "=== Trading Inputs ==="
 input double RiskPercent = 1; //Risk as % of Trading Capital
 input int Tppoints = 450; //Take profit (10 points = 1 pip)
@@ -19,6 +22,11 @@ input ENUM_TIMEFRAMES Timeframe = PERIOD_CURRENT; //Time frame to run
 input int InpMagic = 123; //Expert advisor identification
 input string TradeComment = "Scalping Robot";
 input string ExpirationDate = "999999999999999.05.30";
+
+input group "=== Dashboard Settings ==="
+input bool     ShowDashboard      = true;    // Show on-chart dashboard
+input int      DashX              = 20;      // Dashboard X position (pixels from left)
+input int      DashY              = 30;      // Dashboard Y position (pixels from top)
 
 input group "=== Telegram Settings ==="
 input string TelegramToken = "7801637901:AAHAoFEk3eXcOneF5hpy6FIAuD3R_clEAtw"; // API key Botfather !!!LEAVE EMPTY IN CODE - INSERT IN INPUTS!!!
@@ -104,6 +112,8 @@ int OnInit()
    trade.SetExpertMagicNumber(InpMagic);
    ChartSetInteger(0, CHART_SHOW_GRID, false);
 
+   if(ShowDashboard) BuildDashboard();
+
    string startMsg = "🤖 Trading Bot Started\n\n";
    startMsg += "Symbol: " + _Symbol + "\n";
    startMsg += "Timeframe: " + EnumToString(Timeframe) + "\n";
@@ -128,6 +138,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
+   RemoveDashboard();
    string msg = "🛑 Bot Stopped\n\n";
    msg += "Reason: ";
 
@@ -177,6 +188,7 @@ void OnTick()
   {
    TrailStop();
    CheckTradeEvents();
+   if(ShowDashboard) RefreshDashboard();
 
    if(!IsNewBar())
       return;
@@ -803,5 +815,173 @@ void TrailStop()
            }
         }
      }
+  }
+
+//+------------------------------------------------------------------+
+//| ═══════════════  DASHBOARD  ═══════════════                     |
+//+------------------------------------------------------------------+
+
+#define GOLD_DEEP      C'18,13,5'
+#define GOLD_BORDER    C'120,88,10'
+#define GOLD_HDR_BG    C'40,28,4'
+#define GOLD_HDR_LINE  C'212,170,30'
+#define GOLD_SECTION   C'30,22,4'
+#define GOLD_SHIMMER   C'255,222,80'
+#define GOLD_MID       C'200,155,25'
+#define GOLD_DIM       C'130,100,40'
+#define GOLD_PARCHMENT C'228,208,158'
+#define GOLD_GREEN     C'72,210,120'
+#define GOLD_RED       C'230,75,65'
+#define GOLD_AMBER     C'255,200,50'
+
+void DashLabel(string name, string text, int x, int y,
+               int fontSize, color clr, string font = "Consolas",
+               ENUM_ANCHOR_POINT anchor = ANCHOR_LEFT_UPPER)
+  {
+   string fullName = DASH_PFX + name;
+   if(ObjectFind(0, fullName) < 0)
+     {
+      ObjectCreate(0, fullName, OBJ_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, fullName, OBJPROP_SELECTABLE,  false);
+      ObjectSetInteger(0, fullName, OBJPROP_HIDDEN,      true);
+      ObjectSetInteger(0, fullName, OBJPROP_CORNER,      CORNER_LEFT_UPPER);
+      ObjectSetInteger(0, fullName, OBJPROP_ANCHOR,      anchor);
+     }
+   ObjectSetInteger(0, fullName, OBJPROP_XDISTANCE,  x);
+   ObjectSetInteger(0, fullName, OBJPROP_YDISTANCE,  y);
+   ObjectSetInteger(0, fullName, OBJPROP_FONTSIZE,   fontSize);
+   ObjectSetInteger(0, fullName, OBJPROP_COLOR,      clr);
+   ObjectSetString (0, fullName, OBJPROP_FONT,       font);
+   ObjectSetString (0, fullName, OBJPROP_TEXT,       text);
+  }
+
+void DashRect(string name, int x, int y, int w, int h, color bg, color border)
+  {
+   string fullName = DASH_PFX + name;
+   if(ObjectFind(0, fullName) < 0)
+     {
+      ObjectCreate(0, fullName, OBJ_RECTANGLE_LABEL, 0, 0, 0);
+      ObjectSetInteger(0, fullName, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, fullName, OBJPROP_HIDDEN,     true);
+      ObjectSetInteger(0, fullName, OBJPROP_CORNER,     CORNER_LEFT_UPPER);
+     }
+   ObjectSetInteger(0, fullName, OBJPROP_XDISTANCE,  x);
+   ObjectSetInteger(0, fullName, OBJPROP_YDISTANCE,  y);
+   ObjectSetInteger(0, fullName, OBJPROP_XSIZE,      w);
+   ObjectSetInteger(0, fullName, OBJPROP_YSIZE,      h);
+   ObjectSetInteger(0, fullName, OBJPROP_BGCOLOR,    bg);
+   ObjectSetInteger(0, fullName, OBJPROP_BORDER_COLOR, border);
+   ObjectSetInteger(0, fullName, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+  }
+
+void BuildDashboard()
+  {
+   int bx = DashX;
+   int by = DashY;
+   int bw = 290;
+   int bh = 320;
+
+   DashRect("BORDER",  bx-1,  by-1,  bw+2,  bh+2,  GOLD_BORDER,  GOLD_BORDER);
+   DashRect("BG",      bx,    by,    bw,    bh,    GOLD_DEEP,    GOLD_BORDER);
+   DashRect("HDR_BG",  bx,    by,    bw,    28,    GOLD_HDR_BG,  GOLD_HDR_BG);
+   DashRect("HDR_LN",  bx,    by+28, bw,    2,     GOLD_HDR_LINE, GOLD_HDR_LINE);
+
+   DashRect("SEC_MKT",  bx+2, by+32,  bw-4, 70,  GOLD_SECTION, GOLD_SECTION);
+   DashRect("SEP_LN1",  bx+6, by+104, bw-12, 1,  GOLD_MID,     GOLD_MID);
+   DashRect("SEC_ACC",  bx+2, by+107, bw-4, 70,  GOLD_SECTION, GOLD_SECTION);
+   DashRect("SEP_LN2",  bx+6, by+179, bw-12, 1,  GOLD_MID,     GOLD_MID);
+   DashRect("SEC_GRD",  bx+2, by+182, bw-4, 70,  GOLD_SECTION, GOLD_SECTION);
+   DashRect("SEP_LN3",  bx+6, by+254, bw-12, 1,  GOLD_MID,     GOLD_MID);
+   DashRect("SEC_INF",  bx+2, by+257, bw-4, 58,  GOLD_SECTION, GOLD_SECTION);
+
+   DashLabel("TitleTxt", "✦  COEUR DE MILLIARDAIRE  ✦",
+             bx+14, by+7,  10, GOLD_SHIMMER, "Georgia");
+
+   DashLabel("SH_MKT",  "MARKET",   bx+6, by+33,  6, GOLD_MID, "Consolas");
+   DashLabel("SH_ACC",  "ACCOUNT",  bx+6, by+108, 6, GOLD_MID, "Consolas");
+   DashLabel("SH_TRD",  "TRADING",  bx+6, by+183, 6, GOLD_MID, "Consolas");
+   DashLabel("SH_INF",  "INFO",     bx+6, by+258, 6, GOLD_MID, "Consolas");
+
+   int lx = bx + 10;
+
+   DashLabel("L_SYM",   "Symbol  :",  lx, by+42,  8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_BID",   "Bid     :",  lx, by+56,  8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_ASK",   "Ask     :",  lx, by+70,  8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_SPR",   "Spread  :",  lx, by+84,  8, GOLD_PARCHMENT, "Consolas");
+
+   DashLabel("L_BAL",   "Balance :",  lx, by+117, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_EQ",    "Equity  :",  lx, by+131, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_FR",    "Free Mrg:",  lx, by+145, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_PNL",   "Open P&L:",  lx, by+159, 8, GOLD_PARCHMENT, "Consolas");
+
+   DashLabel("L_BBUY",  "Buy Pos :",  lx, by+192, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_SSELL", "Sell Pos:",  lx, by+206, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_MAGIC", "Magic # :",  lx, by+220, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_RISK",  "Risk %  :",  lx, by+234, 8, GOLD_PARCHMENT, "Consolas");
+
+   DashLabel("L_HOURS", "Hours   :",  lx, by+267, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_EXP",   "License :",  lx, by+281, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("L_COMM",  "Comment :",  lx, by+295, 8, GOLD_PARCHMENT, "Consolas");
+
+   ChartRedraw(0);
+  }
+
+void RefreshDashboard()
+  {
+   double bid    = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double ask    = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double spread = (ask - bid) / _Point;
+
+   double balance    = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity     = AccountInfoDouble(ACCOUNT_EQUITY);
+   double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+
+   int BuyTotal=0;
+   int SellTotal=0;
+   double openPnl = 0;
+
+   for(int i = PositionsTotal()-1; i>=0; i--)
+     {
+      if(pos.SelectByIndex(i))
+        {
+         if(pos.Symbol()==_Symbol && pos.Magic()==InpMagic)
+           {
+            if(pos.PositionType()==POSITION_TYPE_BUY) BuyTotal++;
+            if(pos.PositionType()==POSITION_TYPE_SELL) SellTotal++;
+            openPnl += pos.Profit() + pos.Swap() + pos.Commission();
+           }
+        }
+     }
+
+   int vx = DashX + 128;
+   int by = DashY;
+
+   DashLabel("V_SYM",  _Symbol,                             vx, by+42,  8, GOLD_SHIMMER,   "Consolas");
+   DashLabel("V_BID",  DoubleToString(bid, _Digits),        vx, by+56,  8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("V_ASK",  DoubleToString(ask, _Digits),        vx, by+70,  8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("V_SPR",  DoubleToString(spread, 1) + " pts",  vx, by+84,  8, GOLD_PARCHMENT, "Consolas");
+
+   DashLabel("V_BAL",  DoubleToString(balance,    2),       vx, by+117, 8, GOLD_SHIMMER,   "Consolas");
+   DashLabel("V_EQ",   DoubleToString(equity,     2),       vx, by+131, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("V_FR",   DoubleToString(freeMargin, 2),       vx, by+145, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("V_PNL",  DoubleToString(openPnl,   2),        vx, by+159, 8, (openPnl>=0?GOLD_GREEN:GOLD_RED), "Consolas");
+
+   DashLabel("V_BBUY",  IntegerToString(BuyTotal),          vx, by+192, 8, GOLD_GREEN,     "Consolas");
+   DashLabel("V_SSELL", IntegerToString(SellTotal),         vx, by+206, 8, GOLD_RED,       "Consolas");
+   DashLabel("V_MAGIC", IntegerToString(InpMagic),          vx, by+220, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("V_RISK",  DoubleToString(RiskPercent, 1)+"%", vx, by+234, 8, GOLD_PARCHMENT, "Consolas");
+
+   string hours = IntegerToString(SHInput)+":00-"+IntegerToString(EHInput)+":00";
+   DashLabel("V_HOURS", hours,                              vx, by+267, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("V_EXP",   ExpirationDate,                     vx, by+281, 8, GOLD_PARCHMENT, "Consolas");
+   DashLabel("V_COMM",  TradeComment,                       vx, by+295, 8, GOLD_PARCHMENT, "Consolas");
+
+   ChartRedraw(0);
+  }
+
+void RemoveDashboard()
+  {
+   ObjectsDeleteAll(0, DASH_PFX);
+   ChartRedraw(0);
   }
 //+------------------------------------------------------------------+
