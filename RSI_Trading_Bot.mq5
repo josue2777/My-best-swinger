@@ -19,7 +19,7 @@ input int SL_Pips = 150;
 input int TP_Pips = 150;
 input int TradesPerSignal = 1;
 input int MaxTotalTrades = 5;
-input double TradeVolume = 0.1;
+input double RiskPercent = 1.0; // Risk % per Signal
 input int MagicNumber = 987654;
 
 enum ENUM_YES_NO
@@ -129,6 +129,9 @@ void ExecuteTrades(int type)
   {
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double lots = calcLots(SL_Pips);
+
+   if(lots <= 0) return;
 
    for(int i = 0; i < TradesPerSignal; i++)
      {
@@ -138,13 +141,13 @@ void ExecuteTrades(int type)
         {
          double sl = ask - SL_Pips * m_pip;
          double tp = ask + TP_Pips * m_pip;
-         trade.Buy(TradeVolume, _Symbol, ask, sl, tp, "RSI Scalp Buy");
+         trade.Buy(lots, _Symbol, ask, sl, tp, "RSI Scalp Buy");
         }
       else if(type == -1) // Sell
         {
          double sl = bid + SL_Pips * m_pip;
          double tp = bid - TP_Pips * m_pip;
-         trade.Sell(TradeVolume, _Symbol, bid, sl, tp, "RSI Scalp Sell");
+         trade.Sell(lots, _Symbol, bid, sl, tp, "RSI Scalp Sell");
         }
      }
   }
@@ -233,6 +236,42 @@ int CheckSignals()
      }
 
    return 0;
+  }
+
+//+------------------------------------------------------------------+
+//| Calculate Lot Size based on Risk %                               |
+//+------------------------------------------------------------------+
+double calcLots(double slPips)
+  {
+   if(slPips <= 0) return 0.01;
+
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double riskMoney = balance * RiskPercent / 100.0;
+
+   // Adjust for multiple trades per signal if needed (sharing the risk)
+   if(TradesPerSignal > 1) riskMoney = riskMoney / TradesPerSignal;
+
+   double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+   double volumeStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+
+   // Value of 1 lot for the SL distance
+   // points = pips * (m_pip / _Point)
+   double slPoints = slPips * (m_pip / _Point);
+   double moneyPerLot = (slPoints / tickSize) * tickValue;
+
+   if(moneyPerLot == 0) return 0.01;
+
+   double lots = MathFloor(riskMoney / (moneyPerLot * volumeStep)) * volumeStep;
+
+   // Constraints
+   double minVol = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double maxVol = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+
+   lots = MathMax(lots, minVol);
+   lots = MathMin(lots, maxVol);
+
+   return NormalizeDouble(lots, 2);
   }
 
 //+------------------------------------------------------------------+
