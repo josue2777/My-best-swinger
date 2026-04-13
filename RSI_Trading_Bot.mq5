@@ -82,11 +82,12 @@ void OnTick()
    // "si un signal est détecté alors que des trades sont deja en cours ce signal est juste ignoré"
    if(PositionsTotalByMagic() > 0) return;
 
-   int signal = CheckSignals(); // 1 for Buy, -1 for Sell, 0 for None
+   int signal = CheckSignals(); // 1 for Buy signal, -1 for Sell signal, 0 for None
 
    if(signal != 0)
      {
-      ExecuteTrades(signal);
+      // Invert logic: Buy signal triggers Sell (-1), Sell signal triggers Buy (1)
+      ExecuteTrades(signal * -1);
      }
   }
 

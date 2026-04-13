@@ -4,7 +4,9 @@ A high-frequency scalping robot for MetaTrader 5 based on RSI levels and price a
 
 ## Strategy Overview
 
-The bot monitors the RSI indicator (Period 6, Weighted Close) to identify overbought (Sell) and oversold (Buy) zones. When the price is in these zones, it looks for specific "confirmation" signals to enter trades.
+The bot monitors the RSI indicator (Period 6, Weighted Close) to identify overbought and oversold zones. When the price is in these zones, it looks for specific "confirmation" signals to enter trades.
+
+**Note on Trade Direction**: This bot uses **inverted logic**. When a Buy signal is detected (Price action confirming a move up from the oversold zone), the bot will open a **Sell** position. Conversely, when a Sell signal is detected (Price action confirming a move down from the overbought zone), the bot will open a **Buy** position.
 
 ### Entry Zones
 - **Buy Zone**: RSI <= 16
