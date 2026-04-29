@@ -15,14 +15,14 @@ input double RSI_Level_High = 85.0; // Sell Zone
 input double RSI_Level_Low  = 16.0; // Buy Zone
 
 input group "=== Trade Management ==="
-input int SL_Pips = 150;
-input int TP_Pips = 150;
+input int SL_Pips = 18;
+input int TP_Pips = 18;
 input int MinTradesPerSignal = 1;
 input int MaxTradesPerSignal = 1;
 input int MaxTotalTrades = 5;
 input bool UseRiskManagement = false; // Yes = Use %, No = Fixed Lot
 input double RiskPercent = 1.0; // Risk % per Signal (if enabled)
-input double FixedLotSize = 0.1; // Fixed Lot size (if enabled)
+input double FixedLotSize = 0.01; // Fixed Lot size (if enabled)
 input int MagicNumber = 987654;
 
 enum ENUM_YES_NO

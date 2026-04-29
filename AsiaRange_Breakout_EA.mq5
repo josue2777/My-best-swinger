@@ -29,8 +29,8 @@ input int    InpGMTOffset          = 0;     // Décalage GMT
 
 input group           "══════ Breakout & TP/SL ══════"
 input double InpPipSize            = 1.0;   // Taille du pip (XAUUSD=1.0)
-input int    InpTP2Pips            = 16;    // TP2 distance (pips)
-input int    InpSLPips             = 0;     // SL distance (pips, 0 = session mid)
+input int    InpTP2Pips            = 18;    // TP2 distance (pips)
+input int    InpSLPips             = 18;    // SL distance (pips, 0 = session mid)
 input bool   InpBreakoutOnClose    = true;  // Breakout sur clôture
 input int    InpBreakoutBufferPips = 0;     // Buffer (pips)
 
@@ -43,7 +43,7 @@ input bool   InpAllowBothSides     = false; // Autoriser les 2 sens
 input group           "══════ Gestion du Risque ══════"
 input bool   InpUseRiskManagement = false; // Yes = Use %, No = Fixed Lot
 input double InpRiskPercent        = 1.0;   // Risk % par trade (si actif)
-input double InpFixedLotSize       = 0.1;   // Lot fixe (si actif)
+input double InpFixedLotSize       = 0.01;  // Lot fixe (si actif)
 input double InpMaxLot             = 10.0;
 input double InpMinLot             = 0.01;
 input bool   InpUseBreakeven       = true;

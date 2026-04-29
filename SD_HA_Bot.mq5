@@ -13,9 +13,9 @@ input int InpATRPeriod = 5;
 input double InpMultiplier = 1.5;
 
 input group "=== Trade Management ==="
-input int Default_SL_Pips = 150; // Perte maximale (SL en pips)
-input int Default_TP_Pips = 150; // Profit maximal (TP en pips)
-input double FixedLotSize = 0.1; // Taille de lot à utilisé
+input int Default_SL_Pips = 18; // Perte maximale (SL en pips)
+input int Default_TP_Pips = 18; // Profit maximal (TP en pips)
+input double FixedLotSize = 0.01; // Taille de lot à utilisé
 input int MinTradesPerSignal = 1; // Nombre minimal de trades
 input int MaxTradesPerSignal = 1; // Nombre maximal de trades
 input bool UseRiskManagement = false; // Utiliser 1% du capital? (Yes/No)
