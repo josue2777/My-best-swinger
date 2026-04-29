@@ -30,16 +30,20 @@ input int    InpGMTOffset          = 0;     // Décalage GMT
 input group           "══════ Breakout & TP/SL ══════"
 input double InpPipSize            = 1.0;   // Taille du pip (XAUUSD=1.0)
 input int    InpTP2Pips            = 16;    // TP2 distance (pips)
+input int    InpSLPips             = 0;     // SL distance (pips, 0 = session mid)
 input bool   InpBreakoutOnClose    = true;  // Breakout sur clôture
 input int    InpBreakoutBufferPips = 0;     // Buffer (pips)
 
 input group           "══════ Gestion des Trades ══════"
+input int    InpMinTrades          = 1;     // Min trades par breakout
 input int    InpMaxTrades          = 3;     // Max trades par breakout
 input int    InpReentryPips        = 2;     // Pips recul ré-entrée
 input bool   InpAllowBothSides     = false; // Autoriser les 2 sens
 
 input group           "══════ Gestion du Risque ══════"
-input double InpRiskPercent        = 1.0;   // Risk % par trade
+input bool   InpUseRiskManagement = false; // Yes = Use %, No = Fixed Lot
+input double InpRiskPercent        = 1.0;   // Risk % par trade (si actif)
+input double InpFixedLotSize       = 0.1;   // Lot fixe (si actif)
 input double InpMaxLot             = 10.0;
 input double InpMinLot             = 0.01;
 input bool   InpUseBreakeven       = true;
@@ -83,6 +87,7 @@ string g_prefix = "ASRNG_";
 int OnInit()
 {
    g_trade.SetExpertMagicNumber(InpMagicNumber);
+   MathSrand(GetTickCount());
    g_symbol.Name(_Symbol);
 
    long fillMode = SymbolInfoInteger(_Symbol, SYMBOL_FILLING_MODE);
@@ -115,6 +120,7 @@ bool IsInSession()
 
 double GetLotSize(double sl)
 {
+   if(!InpUseRiskManagement) return InpFixedLotSize;
    if(sl <= 0) return InpMinLot;
    double risk = g_account.Balance() * (InpRiskPercent / 100.0);
    g_symbol.Refresh();
@@ -181,22 +187,69 @@ void OnTick()
       if(price > g_sessionHigh + buf && g_buyCount < InpMaxTrades)
       {
          if(!g_breakoutUp) { g_breakoutUp = true; g_buyCount = 0; }
-         if((g_buyCount == 0 || g_symbol.Bid() <= g_lastBuyPrice - InpReentryPips * InpPipSize) && g_symbol.Spread() <= InpMaxSpread)
+
+         // Logic for min/max trades handled by the loop and reentry check
+         bool canTrade = (g_buyCount == 0);
+         if(!canTrade && g_buyCount < InpMaxTrades)
+            canTrade = (g_symbol.Bid() <= g_lastBuyPrice - InpReentryPips * InpPipSize);
+
+         if(canTrade && g_symbol.Spread() <= InpMaxSpread)
          {
-            double sl = NormalizeDouble((g_sessionLow + g_sessionMid) / 2.0, _Digits);
-            double tp = NormalizeDouble(g_sessionHigh + InpTP2Pips * InpPipSize, _Digits);
-            if(g_trade.Buy(GetLotSize(g_symbol.Ask()-sl), _Symbol, g_symbol.Ask(), sl, tp, InpComment)) { g_buyCount++; g_lastBuyPrice = g_symbol.Ask(); }
+            int tradesToOpen = InpMinTrades;
+            if(InpMaxTrades > InpMinTrades && g_buyCount == 0)
+               tradesToOpen = InpMinTrades + MathRand() % (InpMaxTrades - InpMinTrades + 1);
+
+            for(int t=0; t<tradesToOpen; t++)
+            {
+               if(g_buyCount >= InpMaxTrades) break;
+               double sl = (InpSLPips > 0) ? g_symbol.Ask() - InpSLPips * InpPipSize : (g_sessionLow + g_sessionMid) / 2.0;
+               sl = NormalizeDouble(sl, _Digits);
+               double tp = NormalizeDouble(g_sessionHigh + InpTP2Pips * InpPipSize, _Digits);
+
+               double slDist = g_symbol.Ask() - sl;
+               double lots = GetLotSize(slDist);
+               if(InpUseRiskManagement && tradesToOpen > 1) lots /= tradesToOpen;
+
+               if(g_trade.Buy(lots, _Symbol, g_symbol.Ask(), sl, tp, InpComment))
+               {
+                  g_buyCount++;
+                  g_lastBuyPrice = g_symbol.Ask();
+               }
+            }
          }
       }
       if(price < g_sessionLow - buf && g_sellCount < InpMaxTrades)
       {
          if(!InpAllowBothSides && g_breakoutUp) return;
          if(!g_breakoutDown) { g_breakoutDown = true; g_sellCount = 0; }
-         if((g_sellCount == 0 || g_symbol.Ask() >= g_lastSellPrice + InpReentryPips * InpPipSize) && g_symbol.Spread() <= InpMaxSpread)
+
+         bool canTrade = (g_sellCount == 0);
+         if(!canTrade && g_sellCount < InpMaxTrades)
+            canTrade = (g_symbol.Ask() >= g_lastSellPrice + InpReentryPips * InpPipSize);
+
+         if(canTrade && g_symbol.Spread() <= InpMaxSpread)
          {
-            double sl = NormalizeDouble((g_sessionHigh + g_sessionMid) / 2.0, _Digits);
-            double tp = NormalizeDouble(g_sessionLow - InpTP2Pips * InpPipSize, _Digits);
-            if(g_trade.Sell(GetLotSize(sl-g_symbol.Bid()), _Symbol, g_symbol.Bid(), sl, tp, InpComment)) { g_sellCount++; g_lastSellPrice = g_symbol.Bid(); }
+            int tradesToOpen = InpMinTrades;
+            if(InpMaxTrades > InpMinTrades && g_sellCount == 0)
+               tradesToOpen = InpMinTrades + MathRand() % (InpMaxTrades - InpMinTrades + 1);
+
+            for(int t=0; t<tradesToOpen; t++)
+            {
+               if(g_sellCount >= InpMaxTrades) break;
+               double sl = (InpSLPips > 0) ? g_symbol.Bid() + InpSLPips * InpPipSize : (g_sessionHigh + g_sessionMid) / 2.0;
+               sl = NormalizeDouble(sl, _Digits);
+               double tp = NormalizeDouble(g_sessionLow - InpTP2Pips * InpPipSize, _Digits);
+
+               double slDist = sl - g_symbol.Bid();
+               double lots = GetLotSize(slDist);
+               if(InpUseRiskManagement && tradesToOpen > 1) lots /= tradesToOpen;
+
+               if(g_trade.Sell(lots, _Symbol, g_symbol.Bid(), sl, tp, InpComment))
+               {
+                  g_sellCount++;
+                  g_lastSellPrice = g_symbol.Bid();
+               }
+            }
          }
       }
    }

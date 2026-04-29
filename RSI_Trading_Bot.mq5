@@ -17,9 +17,12 @@ input double RSI_Level_Low  = 16.0; // Buy Zone
 input group "=== Trade Management ==="
 input int SL_Pips = 150;
 input int TP_Pips = 150;
-input int TradesPerSignal = 1;
+input int MinTradesPerSignal = 1;
+input int MaxTradesPerSignal = 1;
 input int MaxTotalTrades = 5;
-input double RiskPercent = 1.0; // Risk % per Signal
+input bool UseRiskManagement = false; // Yes = Use %, No = Fixed Lot
+input double RiskPercent = 1.0; // Risk % per Signal (if enabled)
+input double FixedLotSize = 0.1; // Fixed Lot size (if enabled)
 input int MagicNumber = 987654;
 
 enum ENUM_YES_NO
@@ -47,6 +50,7 @@ double m_pip;
 int OnInit()
   {
    trade.SetExpertMagicNumber(MagicNumber);
+   MathSrand(GetTickCount());
 
    rsiHandle = iRSI(_Symbol, _Period, RSI_Period, RSI_AppliedPrice);
    if(rsiHandle == INVALID_HANDLE)
@@ -130,11 +134,21 @@ void ExecuteTrades(int type)
   {
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   double lots = calcLots(SL_Pips);
+
+   // Random trades count between Min and Max
+   int numTrades = MinTradesPerSignal;
+   if(MaxTradesPerSignal > MinTradesPerSignal)
+      numTrades = MinTradesPerSignal + MathRand() % (MaxTradesPerSignal - MinTradesPerSignal + 1);
+
+   double lots = 0;
+   if(UseRiskManagement)
+      lots = calcLots(SL_Pips, numTrades);
+   else
+      lots = FixedLotSize;
 
    if(lots <= 0) return;
 
-   for(int i = 0; i < TradesPerSignal; i++)
+   for(int i = 0; i < numTrades; i++)
      {
       if(PositionsTotalByMagic() >= MaxTotalTrades) break;
 
@@ -242,7 +256,7 @@ int CheckSignals()
 //+------------------------------------------------------------------+
 //| Calculate Lot Size based on Risk %                               |
 //+------------------------------------------------------------------+
-double calcLots(double slPips)
+double calcLots(double slPips, int tradesCount)
   {
    if(slPips <= 0) return 0.01;
 
@@ -250,7 +264,7 @@ double calcLots(double slPips)
    double riskMoney = balance * RiskPercent / 100.0;
 
    // Adjust for multiple trades per signal if needed (sharing the risk)
-   if(TradesPerSignal > 1) riskMoney = riskMoney / TradesPerSignal;
+   if(tradesCount > 1) riskMoney = riskMoney / tradesCount;
 
    double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);

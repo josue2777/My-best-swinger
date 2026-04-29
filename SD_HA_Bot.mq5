@@ -12,9 +12,14 @@ input group "=== Supertrend HA Settings ==="
 input int InpATRPeriod = 5;
 input double InpMultiplier = 1.5;
 
-input group "=== Risk Management ==="
-input double RiskPercent = 1.0; // 1% of capital
-input int Default_SL_Pips = 150; // Default SL for lot calculation
+input group "=== Trade Management ==="
+input int Default_SL_Pips = 150; // Perte maximale (SL en pips)
+input int Default_TP_Pips = 150; // Profit maximal (TP en pips)
+input double FixedLotSize = 0.1; // Taille de lot à utilisé
+input int MinTradesPerSignal = 1; // Nombre minimal de trades
+input int MaxTradesPerSignal = 1; // Nombre maximal de trades
+input bool UseRiskManagement = false; // Utiliser 1% du capital? (Yes/No)
+input double RiskPercent = 1.0; // % du capital (si activé)
 
 input group "=== Bot Settings ==="
 input int MagicNumber = 554433;
@@ -38,6 +43,7 @@ struct HA_Candle
 int OnInit()
   {
    trade.SetExpertMagicNumber(MagicNumber);
+   MathSrand(GetTickCount());
 
    atrHandle = iATR(_Symbol, _Period, InpATRPeriod);
    if(atrHandle == INVALID_HANDLE)
@@ -198,31 +204,45 @@ void ExecuteTrade(ENUM_POSITION_TYPE type)
   {
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   double price = (type == POSITION_TYPE_BUY) ? ask : bid;
 
-   double lots = CalculateLots();
+   int numTrades = MinTradesPerSignal;
+   if(MaxTradesPerSignal > MinTradesPerSignal)
+      numTrades = MinTradesPerSignal + MathRand() % (MaxTradesPerSignal - MinTradesPerSignal + 1);
+
+   double lots = 0;
+   if(UseRiskManagement)
+      lots = CalculateLots(numTrades);
+   else
+      lots = FixedLotSize;
+
    if(lots <= 0) return;
 
-   double sl = 0, tp = 0;
-   if(type == POSITION_TYPE_BUY)
+   for(int i = 0; i < numTrades; i++)
      {
-      sl = ask - Default_SL_Pips * m_pip;
-      trade.Buy(lots, _Symbol, ask, sl, tp, TradeComment);
-     }
-   else
-     {
-      sl = bid + Default_SL_Pips * m_pip;
-      trade.Sell(lots, _Symbol, bid, sl, tp, TradeComment);
+      double sl = 0, tp = 0;
+      if(type == POSITION_TYPE_BUY)
+        {
+         sl = ask - Default_SL_Pips * m_pip;
+         tp = ask + Default_TP_Pips * m_pip;
+         trade.Buy(lots, _Symbol, ask, sl, tp, TradeComment);
+        }
+      else
+        {
+         sl = bid + Default_SL_Pips * m_pip;
+         tp = bid - Default_TP_Pips * m_pip;
+         trade.Sell(lots, _Symbol, bid, sl, tp, TradeComment);
+        }
      }
   }
 
 //+------------------------------------------------------------------+
 //| Calculate Lot Size based on Risk %                               |
 //+------------------------------------------------------------------+
-double CalculateLots()
+double CalculateLots(int tradesCount)
   {
    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
    double riskMoney = balance * RiskPercent / 100.0;
+   if(tradesCount > 1) riskMoney = riskMoney / tradesCount;
 
    double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
