@@ -1,51 +1,42 @@
-# RSI Scalping Bot
+# Multi-Bot Trading Suite for MT5
 
-A high-frequency scalping robot for MetaTrader 5 based on RSI levels and price action patterns (Wicks, Dojis, and Fair Value Gaps).
+This repository contains three independent, high-performance MetaTrader 5 Expert Advisors (EAs) designed for different market conditions.
 
-## Strategy Overview
+## 1. RSI Scalping Bot (`RSI_Trading_Bot.mq5`)
 
-The bot monitors the RSI indicator (Period 6, Weighted Close) to identify overbought and oversold zones. When the price is in these zones, it looks for specific "confirmation" signals to enter trades.
+A precision scalping robot based on Relative Strength Index (RSI) levels and complex price action patterns.
 
-**Note on Trade Direction**: This bot uses **inverted logic**. When a Buy signal is detected (Price action confirming a move up from the oversold zone), the bot will open a **Sell** position. Conversely, when a Sell signal is detected (Price action confirming a move down from the overbought zone), the bot will open a **Buy** position.
+- **Core Strategy**: Identifies overbought/oversold zones (85/16) and triggers on specific candle confirmations (Wicks, Dojis, Fair Value Gaps).
+- **Inverted Execution**: Buys on Sell signals and Sells on Buy signals for mean-reversion.
+- **Risk Management**: Dynamic lot sizing at 1% of capital per signal.
+- **Signal Toggles**: 8 distinct signal types that can be individually enabled/disabled.
 
-### Entry Zones
-- **Buy Zone**: RSI <= 16
-- **Sell Zone**: RSI >= 85
+## 2. SD HA Supertrend Bot (`SD_HA_Bot.mq5`)
 
-### Signal Types (Configurable)
-The bot includes 8 specific signal detection types that can be enabled or disabled in the inputs:
+An trend-following EA based on Heikin Ashi candles and the Supertrend indicator.
 
-1. **Long Wick Signal**: A candle wick of at least 100 pips pointing in the direction of the trade (lower wick for Buy, upper wick for Sell).
-2. **RSI Extreme + Doji**: RSI reaches 91 (Sell) or 8 (Buy) combined with a Doji candle.
-3. **Doji + Large FVG**: A Doji candle accompanied by an adjacent Fair Value Gap (FVG) of at least 50 pips.
-4. **Doji + Double FVG**: A Doji candle accompanied by two consecutive FVGs of at least 20 pips each.
-5. **Doji + Recent FVG**: A Doji candle with an FVG of at least 54 pips occurring within the previous 4 candles.
-6. **RSI Extreme + Medium Wick**: RSI reaches 91 (Sell) or 8 (Buy) combined with a wick of at least 41 pips.
-7. **Doji + Medium Wick**: A Doji candle with a wick of at least 55 pips.
-8. **RSI Ultimate Extreme**: RSI reaches 95 (Sell) or 5 (Buy).
+- **Core Strategy**: Uses Heikin Ashi smoothing to filter noise and follows the Supertrend direction.
+- **Close & Reverse**: Automatically closes opposite positions when the trend flips.
+- **Risk Management**: 1% capital risk management.
 
-## Trade Management
+## 3. Asia Range Breakout Bot (`AsiaRange_Breakout_EA.mq5`)
 
-- **TP/SL**: Fixed at 150 pips each.
-- **Trades Per Signal**: Configure how many individual positions to open when a signal is detected.
-- **Max Total Trades**: Total limit of concurrent open positions.
-- **Signal Filtering**: If any trades are already open, new signals are ignored until all current trades are closed.
+A hybrid Expert Advisor and Indicator focused on the Asian session breakout.
 
-## Installation
+- **Core Strategy**: Captures the high/low of the Asia session (default 21:45 - 22:15) and trades the breakout.
+- **Dual Mode**: Provides visual on-chart analysis (range boxes, signal arrows) while executing trades automatically.
+- **Targets**: Optimized for high-probability TP2 targets.
+- **Features**: Breakeven management and forced end-of-day closure.
 
-1. Copy `RSI_Trading_Bot.mq5` to your MetaTrader 5 `MQL5/Experts` folder.
-2. Compile the file in MetaEditor.
-3. Attach the Expert Advisor to your desired chart.
-4. Ensure "Algo Trading" is enabled in your MetaTrader 5 terminal.
+---
 
-## Parameters
+## Installation & Setup
 
-| Parameter | Description |
-|-----------|-------------|
-| RSI_Period | Period for the RSI indicator (Default: 6) |
-| RSI_AppliedPrice | Price type for RSI calculation (Default: Weighted) |
-| SL_Pips | Stop Loss in pips (Default: 150) |
-| TP_Pips | Take Profit in pips (Default: 150) |
-| TradesPerSignal | Number of trades to open per signal |
-| MaxTotalTrades | Maximum allowed concurrent trades |
-| Enable_Signal_1-8 | Toggle switches for each signal type |
+1. Copy the `.mq5` files to your MetaTrader 5 `MQL5/Experts` directory.
+2. Compile the files in MetaEditor.
+3. Drag the desired bot onto your chart.
+4. Ensure **Algo Trading** is enabled in MT5.
+5. In the bot inputs, configure your preferred risk and magic numbers.
+
+## Risk Warning
+Trading involves significant risk. Always test these bots on a demo account before using live capital.
